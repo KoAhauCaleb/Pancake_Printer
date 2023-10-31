@@ -1,0 +1,8 @@
+../Core/Src/Movement.c:27:6:delay	16	static
+../Core/Src/Movement.c:30:6:delayus	16	static
+../Core/Src/Movement.c:35:6:set_timer	8	static
+../Core/Src/Movement.c:39:6:set_speed	16	static
+../Core/Src/Movement.c:43:6:move	48	static
+../Core/Src/Movement.c:101:6:home	8	static
+../Core/Src/Movement.c:142:6:start_extrusion	4	static
+../Core/Src/Movement.c:145:6:stop_extrusion	4	static
