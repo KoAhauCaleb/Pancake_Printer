@@ -1,4 +1,5 @@
 
+void motor_init();
 void set_timer(TIM_HandleTypeDef *htim);
 void set_speed(float new_speed); //mm/sec
 void move(float x, float y);  //mm

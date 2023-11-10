@@ -141,7 +141,9 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
+
   set_timer(&htim1);
+  motor_init();
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -484,7 +486,16 @@ void StartCommandTask(void *argument)
   /* USER CODE BEGIN StartCommandTask */
   /* Infinite loop */
   home();
-  reset_extruder();
+  start_extrusion();
+  move(40,40);
+  osDelay(1000);
+  stop_extrusion();
+  set_speed(100);
+  move(80,80);
+  start_extrusion();
+  move(40,40);
+  stop_extrusion();
+  //reset_extruder();
   for(;;)
   {
     osDelay(1);
