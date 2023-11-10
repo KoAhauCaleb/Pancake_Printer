@@ -18,17 +18,11 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include <stdio.h>
-#include <math.h>
-#include <stdbool.h>
-#define PI 3.141592654
-
-const char *s =
-#include "gcode.h"
-;
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdbool.h>
 #include "Movement.h"
 /* USER CODE END Includes */
 
@@ -52,6 +46,46 @@ TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
 
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for commandTask */
+osThreadId_t commandTaskHandle;
+const osThreadAttr_t commandTask_attributes = {
+  .name = "commandTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for parserTask */
+osThreadId_t parserTaskHandle;
+const osThreadAttr_t parserTask_attributes = {
+  .name = "parserTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for menuTask */
+osThreadId_t menuTaskHandle;
+const osThreadAttr_t menuTask_attributes = {
+  .name = "menuTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for extruderTask */
+osThreadId_t extruderTaskHandle;
+const osThreadAttr_t extruderTask_attributes = {
+  .name = "extruderTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for commandQueue */
+osMessageQueueId_t commandQueueHandle;
+const osMessageQueueAttr_t commandQueue_attributes = {
+  .name = "commandQueue"
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -61,6 +95,12 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
+void StartDefaultTask(void *argument);
+void StartCommandTask(void *argument);
+void StartParserTask(void *argument);
+void StartMenuTask(void *argument);
+void StartExtruderTask(void *argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -100,15 +140,61 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
-  HAL_TIM_Base_Start(&htim1);
-  set_timer(htim1);
   /* USER CODE BEGIN 2 */
-  HAL_GPIO_WritePin(ENABLE_GPIO_Port, ENABLE_Pin, GPIO_PIN_RESET);
-
-  home();
-
+  set_timer(&htim1);
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* Create the queue(s) */
+  /* creation of commandQueue */
+  commandQueueHandle = osMessageQueueNew (16, sizeof(uint16_t), &commandQueue_attributes);
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* creation of commandTask */
+  commandTaskHandle = osThreadNew(StartCommandTask, NULL, &commandTask_attributes);
+
+  /* creation of parserTask */
+  parserTaskHandle = osThreadNew(StartParserTask, NULL, &parserTask_attributes);
+
+  /* creation of menuTask */
+  menuTaskHandle = osThreadNew(StartMenuTask, NULL, &menuTask_attributes);
+
+  /* creation of extruderTask */
+  extruderTaskHandle = osThreadNew(StartExtruderTask, NULL, &extruderTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
@@ -268,12 +354,18 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LD2_Pin|Z_DIR_Pin|ENABLE_Pin|X_STEP_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, Screen_CS_Pin|Z_DIR_Pin|ENABLE_Pin|X_STEP_Pin
+                          |SD_CS_Pin|Screen_DC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, Y_DIR_Pin|Y_STEP_Pin|X_DIR_Pin|Z_STEP_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, Touch_CS_Pin|Y_DIR_Pin|Y_STEP_Pin|X_DIR_Pin
+                          |Z_STEP_Pin|Screen_LED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(Screen_RST_GPIO_Port, Screen_RST_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -281,24 +373,42 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD2_Pin Z_DIR_Pin ENABLE_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin|Z_DIR_Pin|ENABLE_Pin;
+  /*Configure GPIO pins : Screen_CS_Pin Z_DIR_Pin ENABLE_Pin SD_CS_Pin
+                           Screen_DC_Pin */
+  GPIO_InitStruct.Pin = Screen_CS_Pin|Z_DIR_Pin|ENABLE_Pin|SD_CS_Pin
+                          |Screen_DC_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : Z_STOP_Pin */
-  GPIO_InitStruct.Pin = Z_STOP_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  /*Configure GPIO pins : SD_SCK_Pin SD_MISO_Pin SD_MOSI_Pin */
+  GPIO_InitStruct.Pin = SD_SCK_Pin|SD_MISO_Pin|SD_MOSI_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(Z_STOP_GPIO_Port, &GPIO_InitStruct);
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Y_DIR_Pin X_DIR_Pin */
-  GPIO_InitStruct.Pin = Y_DIR_Pin|X_DIR_Pin;
+  /*Configure GPIO pins : Touch_CS_Pin Y_DIR_Pin X_DIR_Pin Screen_LED_Pin */
+  GPIO_InitStruct.Pin = Touch_CS_Pin|Y_DIR_Pin|X_DIR_Pin|Screen_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Touch_IRQ_Pin Y_STOP_Pin */
+  GPIO_InitStruct.Pin = Touch_IRQ_Pin|Y_STOP_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Touch_SCK_Pin Touch_MISO_Pin Touch_MOSI_Pin */
+  GPIO_InitStruct.Pin = Touch_SCK_Pin|Touch_MISO_Pin|Touch_MOSI_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : X_STOP_Pin */
@@ -314,18 +424,27 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(X_STEP_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : Screen_SCK_Pin Screen_MISO_Pin Screen_MOSI_Pin */
+  GPIO_InitStruct.Pin = Screen_SCK_Pin|Screen_MISO_Pin|Screen_MOSI_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF6_SPI3;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Screen_RST_Pin */
+  GPIO_InitStruct.Pin = Screen_RST_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(Screen_RST_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pins : Y_STEP_Pin Z_STEP_Pin */
   GPIO_InitStruct.Pin = Y_STEP_Pin|Z_STEP_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : Y_STOP_Pin */
-  GPIO_InitStruct.Pin = Y_STOP_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(Y_STOP_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
@@ -334,6 +453,118 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartCommandTask */
+/**
+* @brief Function implementing the commandTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartCommandTask */
+void StartCommandTask(void *argument)
+{
+  /* USER CODE BEGIN StartCommandTask */
+  /* Infinite loop */
+  home();
+  reset_extruder();
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartCommandTask */
+}
+
+/* USER CODE BEGIN Header_StartParserTask */
+/**
+* @brief Function implementing the parserTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartParserTask */
+void StartParserTask(void *argument)
+{
+  /* USER CODE BEGIN StartParserTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartParserTask */
+}
+
+/* USER CODE BEGIN Header_StartMenuTask */
+/**
+* @brief Function implementing the menuTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartMenuTask */
+void StartMenuTask(void *argument)
+{
+  /* USER CODE BEGIN StartMenuTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartMenuTask */
+}
+
+/* USER CODE BEGIN Header_StartExtruderTask */
+/**
+* @brief Function implementing the extruderTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartExtruderTask */
+void StartExtruderTask(void *argument)
+{
+  /* USER CODE BEGIN StartExtruderTask */
+  /* Infinite loop */
+  while(true){
+    extrude();
+  }
+  /* USER CODE END StartExtruderTask */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM2 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM2) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
