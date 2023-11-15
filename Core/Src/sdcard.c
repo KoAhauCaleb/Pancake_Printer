@@ -79,7 +79,7 @@ void OpenFilesystem(void)
   	  myprintf("SD card stats:\r\n%10lu KiB total drive space.\r\n%10lu KiB available.\r\n", total_sectors / 2, free_sectors / 2);
 
   }
-void RandomPrinting(void *argument)
+void RandomPrinting(void *argument)//only used for debugging purposes.
 {
 	while(true)
 		{
@@ -88,14 +88,14 @@ void RandomPrinting(void *argument)
 		}
 
 }
-void Enqueue(const char* line)
+void Enqueue(const char* line)// add gcode lines from the test.txt files to the queue.
 {
     // Add the line to the queue
     strncpy((char*)queue[queueRear], line, sizeof(queue[queueRear]));
     queueRear = (queueRear + 1) % QUEUE_SIZE;
     queueFlag = 1;  // Set the flag to indicate there's something in the queue
 }
-void Dequeue(void) {
+void Dequeue(void) {//if there is something in the queue, it will dequeue, if there is nothing on the queue it will show printing is finished in serial monitor.
 
     if (queueFlag) {
         // Dequeue the first item
@@ -110,7 +110,7 @@ void Dequeue(void) {
         }
     }
 }
-void GCodeEnqueueFromCard(void)
+void GCodeEnqueueFromCard(void)// will add all the lines from test.txt file to the queueue, so they can m=be read and dequeued once they are printed.
   {
 	myprintf("Starting Queues.\r\n");
 	HAL_Delay(2000);
