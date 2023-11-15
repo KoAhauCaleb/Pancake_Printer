@@ -19,11 +19,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdbool.h>
 #include "Movement.h"
+#include "sdcard.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,6 +44,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+SPI_HandleTypeDef hspi1;
+
 TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
@@ -86,6 +90,16 @@ osMessageQueueId_t commandQueueHandle;
 const osMessageQueueAttr_t commandQueue_attributes = {
   .name = "commandQueue"
 };
+
+/* Definitions for commandQueue */
+/* Definitions for SDcardTask */
+osThreadId_t sdcardTaskHandle;
+const osThreadAttr_t sdcardTask_attributes = {
+  .name = "sdcardTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -95,11 +109,13 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_SPI1_Init(void);
 void StartDefaultTask(void *argument);
 void StartCommandTask(void *argument);
 void StartParserTask(void *argument);
 void StartMenuTask(void *argument);
 void StartExtruderTask(void *argument);
+void StartsdcardTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -140,6 +156,8 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
+  MX_SPI1_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 
   set_timer(&htim1);
@@ -184,6 +202,9 @@ int main(void)
 
   /* creation of extruderTask */
   extruderTaskHandle = osThreadNew(StartExtruderTask, NULL, &extruderTask_attributes);
+
+  /* creation of SDcardTask */
+  sdcardTaskHandle = osThreadNew(StartsdcardTask, NULL, &sdcardTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -256,6 +277,46 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 7;
+  hspi1.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
 }
 
 /**
@@ -382,14 +443,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : SD_SCK_Pin SD_MISO_Pin SD_MOSI_Pin */
-  GPIO_InitStruct.Pin = SD_SCK_Pin|SD_MISO_Pin|SD_MOSI_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF5_SPI1;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : Touch_CS_Pin Y_DIR_Pin X_DIR_Pin Screen_LED_Pin */
@@ -553,6 +606,33 @@ void StartExtruderTask(void *argument)
   while(true){
     extrude();
   }
+  /* USER CODE END StartExtruderTask */
+}
+
+void StartsdcardTask(void *argument)
+{
+  /* USER CODE BEGIN StartExtruderTask */
+	OpenFilesystem();
+	GCodeEnqueueFromCard();
+	  /* USER CODE BEGIN 5 */
+	  /* Infinite loop */
+	  while(1)
+	  {
+//		   if (isPrinting == 1)
+//		   {
+//			   osDelay(1);
+//		   }
+//		   else if (isPrinting == 0)
+//		   {
+//			   Dequeue();
+//			   osDelay(1);
+//		   }
+//		   else
+//		   {
+//			   myprintf("Error: unexpected state of isPrinting variable\r\n"); // Handle unexpected state of isPrinting (optional)
+//		   }
+	   }
+
   /* USER CODE END StartExtruderTask */
 }
 

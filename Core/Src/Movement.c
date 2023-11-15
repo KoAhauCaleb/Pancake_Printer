@@ -121,7 +121,6 @@ void move(float x, float y){
   current_y = y;
 }
 
-
 void home() {
   HAL_GPIO_WritePin(X_DIR_GPIO_Port, X_DIR_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(Y_DIR_GPIO_Port, Y_DIR_Pin, GPIO_PIN_SET);
