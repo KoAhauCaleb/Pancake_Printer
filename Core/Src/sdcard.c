@@ -30,8 +30,10 @@
 FATFS FatFs;
 FIL fil;
 FRESULT fres;
-SPI_HandleTypeDef hspi1;
-UART_HandleTypeDef huart2;
+
+extern SPI_HandleTypeDef hspi1;
+extern UART_HandleTypeDef huart2;
+
 
 volatile uint8_t queue[QUEUE_SIZE][60];  // Queue to store lines
 volatile uint8_t queueFront = 0;          // Front of the queue

@@ -50,6 +50,10 @@ TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
 
+
+extern SPI_HandleTypeDef hspi1;
+extern UART_HandleTypeDef huart2;
+
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
