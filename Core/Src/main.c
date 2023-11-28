@@ -50,7 +50,7 @@ TIM_HandleTypeDef htim1;
 
 UART_HandleTypeDef huart2;
 
-
+extern TIM_HandleTypeDef htim1;
 extern SPI_HandleTypeDef hspi1;
 extern UART_HandleTypeDef huart2;
 
@@ -164,7 +164,6 @@ int main(void)
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 
-  set_timer(&htim1);
   motor_init();
   /* USER CODE END 2 */
 

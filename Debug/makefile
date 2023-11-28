@@ -68,8 +68,8 @@ all: main-build
 main-build: Pancake_Printer.elf secondary-outputs
 
 # Tool invocations
-Pancake_Printer.elf Pancake_Printer.map: $(OBJS) $(USER_OBJS) C:\Users\esteb\OneDrive\Documents\GitHub\Pancake_Printer\STM32L476RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Pancake_Printer.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\esteb\OneDrive\Documents\GitHub\Pancake_Printer\STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Pancake_Printer.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Pancake_Printer.elf Pancake_Printer.map: $(OBJS) $(USER_OBJS) C:\Users\Caleb\STM32CubeIDE\workspace_1.13.1\Pancake_Printer\STM32L476RGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Pancake_Printer.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Caleb\STM32CubeIDE\workspace_1.13.1\Pancake_Printer\STM32L476RGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Pancake_Printer.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
