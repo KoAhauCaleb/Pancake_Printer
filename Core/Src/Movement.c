@@ -16,7 +16,7 @@
 
 #define ST 1500//step time ticks 1400-1600
 
-TIM_HandleTypeDef *htime;
+extern TIM_HandleTypeDef htim1;
 
 float current_x = 0;
 float current_y = 0;
@@ -32,10 +32,10 @@ void delayms(uint16_t ms){
 }
 
 void delayus(uint16_t us){
-  __HAL_TIM_SET_COUNTER(htime,0);  // set the counter value a 0
-  HAL_TIM_Base_Start(htime);
-  while (__HAL_TIM_GET_COUNTER(htime) < us);
-  HAL_TIM_Base_Stop(htime);// wait for the counter to reach the us input in the parameter
+  __HAL_TIM_SET_COUNTER(&htim1,0);  // set the counter value a 0
+  HAL_TIM_Base_Start(&htim1);
+  while (__HAL_TIM_GET_COUNTER(&htim1) < us);
+  HAL_TIM_Base_Stop(&htim1);// wait for the counter to reach the us input in the parameter
 }
 
 void motor_init(){
@@ -55,10 +55,6 @@ void motor_init(){
   delayus(2);
   HAL_GPIO_WritePin(Z_STEP_GPIO_Port, Z_STEP_Pin, GPIO_PIN_RESET);
   delayus(1000000 / (Z_STEPS_PER_MM * extrude_speed));
-}
-
-void set_timer(TIM_HandleTypeDef *htim){
-  htime = htim;
 }
 
 void set_speed(float new_speed){
@@ -99,7 +95,7 @@ void move(float x, float y){
       HAL_GPIO_WritePin(Y_STEP_GPIO_Port, Y_STEP_Pin, GPIO_PIN_SET);
       y_taken++;
     }
-    delayms(2);
+    delayus(2);
     HAL_GPIO_WritePin(X_STEP_GPIO_Port, X_STEP_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(Y_STEP_GPIO_Port, Y_STEP_Pin, GPIO_PIN_RESET);
     delayms(1000 / (X_STEPS_PER_MM * speed)); // 1000000us/1s / (step/mm * mm/s)
@@ -107,13 +103,13 @@ void move(float x, float y){
 
   while (x_steps > x_taken){
     HAL_GPIO_WritePin(X_STEP_GPIO_Port, X_STEP_Pin, GPIO_PIN_SET);
-    delayms(2);
+    delayus(2);
     HAL_GPIO_WritePin(X_STEP_GPIO_Port, X_STEP_Pin, GPIO_PIN_RESET);
     x_taken++;
   }
   while (y_steps > y_taken){
     HAL_GPIO_WritePin(Y_STEP_GPIO_Port, Y_STEP_Pin, GPIO_PIN_SET);
-    delayms(2);
+    delayus(2);
     HAL_GPIO_WritePin(Y_STEP_GPIO_Port, Y_STEP_Pin, GPIO_PIN_RESET);
     y_taken++;
   }
@@ -127,13 +123,13 @@ void home() {
   //move fast until limit switch hit
   while(!HAL_GPIO_ReadPin(X_STOP_GPIO_Port, X_STOP_Pin)){
     HAL_GPIO_WritePin(X_STEP_GPIO_Port, X_STEP_Pin, GPIO_PIN_SET);
-    delayms(2);
+    delayus(2);
     HAL_GPIO_WritePin(X_STEP_GPIO_Port, X_STEP_Pin, GPIO_PIN_RESET);
     delayms(1000 / (X_STEPS_PER_MM * speed));
   }
   while(!HAL_GPIO_ReadPin(Y_STOP_GPIO_Port, Y_STOP_Pin)){
     HAL_GPIO_WritePin(Y_STEP_GPIO_Port, Y_STEP_Pin, GPIO_PIN_SET);
-    delayms(2);
+    delayus(2);
     HAL_GPIO_WritePin(Y_STEP_GPIO_Port, Y_STEP_Pin, GPIO_PIN_RESET);
     delayms(1000 / (X_STEPS_PER_MM * speed));
   }
