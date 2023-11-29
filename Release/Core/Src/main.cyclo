@@ -1,0 +1,10 @@
+../Core/Src/main.c:519:6:StartDefaultTask	1
+../Core/Src/main.c:537:6:StartCommandTask	1
+../Core/Src/main.c:602:6:StartExtruderTask	1
+../Core/Src/main.c:612:6:StartsdcardTask	1
+../Core/Src/main.c:584:6:StartMenuTask	1
+../Core/Src/main.c:566:6:StartParserTask	1
+../Core/Src/main.c:237:6:SystemClock_Config	4
+../Core/Src/main.c:133:5:main	6
+../Core/Src/main.c:647:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/main.c:664:6:Error_Handler	1

@@ -1,0 +1,6 @@
+../Core/Src/sdcard.c:44:6:myprintf	16	static
+../Core/Src/sdcard.c:54:6:OpenFilesystem	16	static
+../Core/Src/sdcard.c:82:6:RandomPrinting	8	static
+../Core/Src/sdcard.c:91:6:Enqueue	8	static
+../Core/Src/sdcard.c:98:6:Dequeue	16	static
+../Core/Src/sdcard.c:113:6:GCodeEnqueueFromCard	80	static
