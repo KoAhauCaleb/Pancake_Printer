@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-#define QUEUE_SIZE 500
+#define QUEUE_SIZE 1000
 
 FATFS FatFs;
 FIL fil;
@@ -159,3 +159,39 @@ void GCodeEnqueueFromCard(void)// will add all the lines from test.txt file to t
 
 
   }
+int eof(){
+    return f_eof(&fil);
+}
+
+TCHAR* rres;
+
+void GetLine(BYTE readBuf[50]){
+  rres = f_gets((TCHAR*)readBuf, 50, &fil);
+  if(rres == 0){
+    myprintf("f_gets error (%i)\r\n", rres);
+  }
+}
+
+bool OpenFile(char* file_name){
+  HAL_Delay(2000);
+  fres = f_mount(&FatFs, "", 1);
+  if (fres != FR_OK) {
+    myprintf("1 - f_mount error (%i)\r\n", fres);
+    return false;
+  }
+  myprintf("mounted\n");
+
+  myprintf("opening file\n");
+  fres = f_open(&fil, "test.txt", FA_READ);
+  if (fres != FR_OK) {
+      myprintf("f_open error (%i)\r\n", fres);
+      return false;
+  }
+  myprintf("File open success\r\n");
+  return true;
+ }
+
+void CloseFile(void)
+{
+    f_close(&fil);
+}

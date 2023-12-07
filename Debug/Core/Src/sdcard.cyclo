@@ -4,3 +4,7 @@
 ../Core/Src/sdcard.c:93:6:Enqueue	1
 ../Core/Src/sdcard.c:100:6:Dequeue	3
 ../Core/Src/sdcard.c:115:6:GCodeEnqueueFromCard	4
+../Core/Src/sdcard.c:162:5:eof	1
+../Core/Src/sdcard.c:168:6:GetLine	2
+../Core/Src/sdcard.c:175:6:OpenFile	3
+../Core/Src/sdcard.c:194:6:CloseFile	1

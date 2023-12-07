@@ -10,6 +10,8 @@
 #include "main.h"
 #include "Movement.h"
 
+
+
 #define X_STEPS_PER_MM 20 //6.5mm - 27.6
 #define Y_STEPS_PER_MM 20 //23mm - 43.5
 #define Z_STEPS_PER_MM 50
@@ -21,8 +23,14 @@ extern TIM_HandleTypeDef htim1;
 float current_x = 0;
 float current_y = 0;
 
+
+int crr1_1ms = 800;
+int crr1_2ms = 1600;
+int servo_on_duty = 15;
+int servo_off_duty = 55;//30-50
+
 float speed = 20.0; //mm/s
-float extrude_speed = 10.0; //mm/s
+float extrude_speed = 2.0; //mm/s
 
 bool extrusion_on = false;
 
@@ -40,7 +48,7 @@ void delayus(uint16_t us){
 
 void motor_init(){
   //For some reason non-syncronus delay needed before synchronous delay will work.
-  HAL_GPIO_WritePin(X_DIR_GPIO_Port, X_DIR_Pin, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(X_DIR_GPIO_Port, X_DIR_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(Y_DIR_GPIO_Port, Y_DIR_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(Z_DIR_GPIO_Port, Z_DIR_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(X_STEP_GPIO_Port, X_STEP_Pin, GPIO_PIN_SET);
@@ -55,6 +63,9 @@ void motor_init(){
   delayus(2);
   HAL_GPIO_WritePin(Z_STEP_GPIO_Port, Z_STEP_Pin, GPIO_PIN_RESET);
   delayus(1000000 / (Z_STEPS_PER_MM * extrude_speed));
+
+  uint16_t ccr1 = (uint16_t) ((crr1_2ms - crr1_1ms) * servo_off_duty / 100) + crr1_1ms;
+  TIM4->CCR1 = ccr1;
 }
 
 void set_speed(float new_speed){
@@ -117,6 +128,10 @@ void move(float x, float y){
   current_y = y;
 }
 
+void wait(int ms){
+  delayms(ms);
+}
+
 void home() {
   HAL_GPIO_WritePin(X_DIR_GPIO_Port, X_DIR_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(Y_DIR_GPIO_Port, Y_DIR_Pin, GPIO_PIN_SET);
@@ -163,25 +178,29 @@ void home() {
 
 void start_extrusion(){
   extrusion_on = true;
+
+  uint16_t ccr1 = (uint16_t) (((crr1_2ms - crr1_1ms) * (servo_on_duty / 100.0)) + crr1_1ms);
+  TIM4->CCR3 = ccr1;
 }
 
 void stop_extrusion(){
   extrusion_on = false;
+
+  uint16_t ccr1 = (uint16_t) ((crr1_2ms - crr1_1ms) * (servo_off_duty / 100.0)) + crr1_1ms;
+  TIM4->CCR3 = ccr1;
 }
 
 void extrude(){
-  if(extrusion_on){
-    HAL_GPIO_WritePin(Z_STEP_GPIO_Port, Z_STEP_Pin, GPIO_PIN_SET);
-    delayus(2);
-    HAL_GPIO_WritePin(Z_STEP_GPIO_Port, Z_STEP_Pin, GPIO_PIN_RESET);
-    delayms(1000 / (Z_STEPS_PER_MM * extrude_speed));
-  }
+    if(extrusion_on){
+      HAL_GPIO_WritePin(Z_DIR_GPIO_Port, Z_DIR_Pin, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(Z_STEP_GPIO_Port, Z_STEP_Pin, GPIO_PIN_SET);
+      delayus(2);
+      HAL_GPIO_WritePin(Z_STEP_GPIO_Port, Z_STEP_Pin, GPIO_PIN_RESET);
+      delayms(1000 / (Z_STEPS_PER_MM * extrude_speed));
+    }
 }
 
 void reset_extruder(){
-  if(current_x < 5){
-    move(5, current_y);
-  }
 
   HAL_GPIO_WritePin(Z_DIR_GPIO_Port, Z_DIR_Pin, GPIO_PIN_SET);
 
@@ -189,7 +208,7 @@ void reset_extruder(){
     HAL_GPIO_WritePin(Z_STEP_GPIO_Port, Z_STEP_Pin, GPIO_PIN_SET);
     delayus(2);
     HAL_GPIO_WritePin(Z_STEP_GPIO_Port, Z_STEP_Pin, GPIO_PIN_RESET);
-    delayms(1000 / (X_STEPS_PER_MM * 100));
+    HAL_Delay(1000 / (X_STEPS_PER_MM * 40));
   }
 
   HAL_GPIO_WritePin(Z_DIR_GPIO_Port, Z_DIR_Pin, GPIO_PIN_RESET);

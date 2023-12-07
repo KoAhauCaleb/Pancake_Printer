@@ -1,1 +1,2 @@
-../Core/Src/interpreter.c:15:6:InterpretLine	144	static
+../Core/Src/interpreter.c:20:6:myprintc	16	static
+../Core/Src/interpreter.c:31:6:InterpretLine	144	static

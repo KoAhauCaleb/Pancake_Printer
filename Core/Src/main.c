@@ -26,6 +26,7 @@
 #include <stdbool.h>
 #include "Movement.h"
 #include "sdcard.h"
+#include "interpreter.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,12 +48,9 @@
 SPI_HandleTypeDef hspi1;
 
 TIM_HandleTypeDef htim1;
+TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart2;
-
-extern TIM_HandleTypeDef htim1;
-extern SPI_HandleTypeDef hspi1;
-extern UART_HandleTypeDef huart2;
 
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -65,45 +63,33 @@ const osThreadAttr_t defaultTask_attributes = {
 osThreadId_t commandTaskHandle;
 const osThreadAttr_t commandTask_attributes = {
   .name = "commandTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 350 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for parserTask */
 osThreadId_t parserTaskHandle;
 const osThreadAttr_t parserTask_attributes = {
   .name = "parserTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
-};
-/* Definitions for menuTask */
-osThreadId_t menuTaskHandle;
-const osThreadAttr_t menuTask_attributes = {
-  .name = "menuTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 400 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for extruderTask */
 osThreadId_t extruderTaskHandle;
 const osThreadAttr_t extruderTask_attributes = {
   .name = "extruderTask",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for commandQueue */
 osMessageQueueId_t commandQueueHandle;
 const osMessageQueueAttr_t commandQueue_attributes = {
   .name = "commandQueue"
 };
-
-/* Definitions for commandQueue */
-/* Definitions for SDcardTask */
-osThreadId_t sdcardTaskHandle;
-const osThreadAttr_t sdcardTask_attributes = {
-  .name = "sdcardTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+/* Definitions for coordQueue */
+osMessageQueueId_t coordQueueHandle;
+const osMessageQueueAttr_t coordQueue_attributes = {
+  .name = "coordQueue"
 };
-
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -114,12 +100,11 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_TIM4_Init(void);
 void StartDefaultTask(void *argument);
 void StartCommandTask(void *argument);
 void StartParserTask(void *argument);
-void StartMenuTask(void *argument);
 void StartExtruderTask(void *argument);
-void StartsdcardTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -162,9 +147,14 @@ int main(void)
   MX_TIM1_Init();
   MX_SPI1_Init();
   MX_FATFS_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
   motor_init();
+  //reset_extruder();
+  OpenFile("test.gcode");
+
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -184,7 +174,10 @@ int main(void)
 
   /* Create the queue(s) */
   /* creation of commandQueue */
-  commandQueueHandle = osMessageQueueNew (16, sizeof(uint16_t), &commandQueue_attributes);
+  commandQueueHandle = osMessageQueueNew (15, sizeof(int), &commandQueue_attributes);
+
+  /* creation of coordQueue */
+  coordQueueHandle = osMessageQueueNew (15, sizeof(float), &coordQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -200,14 +193,8 @@ int main(void)
   /* creation of parserTask */
   parserTaskHandle = osThreadNew(StartParserTask, NULL, &parserTask_attributes);
 
-  /* creation of menuTask */
-  menuTaskHandle = osThreadNew(StartMenuTask, NULL, &menuTask_attributes);
-
   /* creation of extruderTask */
   extruderTaskHandle = osThreadNew(StartExtruderTask, NULL, &extruderTask_attributes);
-
-  /* creation of SDcardTask */
-  sdcardTaskHandle = osThreadNew(StartsdcardTask, NULL, &sdcardTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -305,7 +292,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -366,6 +353,55 @@ static void MX_TIM1_Init(void)
   /* USER CODE BEGIN TIM1_Init 2 */
 
   /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 100;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 16000;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_PWM_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 16000;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+  HAL_TIM_MspPostInit(&htim4);
 
 }
 
@@ -540,22 +576,62 @@ void StartDefaultTask(void *argument)
 void StartCommandTask(void *argument)
 {
   /* USER CODE BEGIN StartCommandTask */
-  /* Infinite loop */
-  home();
-  start_extrusion();
-  move(40,40);
-  osDelay(1000);
-  stop_extrusion();
-  set_speed(100);
-  move(80,80);
-  start_extrusion();
-  move(40,40);
-  stop_extrusion();
-  //reset_extruder();
-  for(;;)
-  {
-    osDelay(1);
-  }
+    /* Infinite loop */
+    uint8_t  prio = 100;
+
+    int cmd = -1;
+
+    float xCoord = -1;
+    float yCoord = -1;
+
+    int speedSet = 0;
+    int pauseDur = 0;
+
+    int rres;
+
+    while(1){
+      rres = osMessageQueueGet(commandQueueHandle, &cmd, &prio, (uint32_t) 1);
+      if(rres == osOK){
+        switch (cmd) {
+          case 1:
+            // Add code to handle G1 Set Speed
+            osMessageQueueGet(commandQueueHandle, &speedSet, &prio, 1);
+            //set_speed(speedSet/60);
+            break;
+          case 4:
+            // handle G4 Pause
+            osMessageQueueGet(commandQueueHandle, &pauseDur, &prio, 1);
+            wait(pauseDur);
+            break;
+          case 0:
+            // handle G0 X{xCoord} Y{yCoord}
+            osMessageQueueGet(coordQueueHandle, &xCoord, &prio, 1);
+            osMessageQueueGet(coordQueueHandle, &yCoord, &prio, 1);
+            move(xCoord, yCoord);
+            break;
+          case 28:
+            // handle G28 Home
+            home();
+            break;
+          case 106:
+            // handle M106 Start Extrusion
+            start_extrusion();
+            break;
+          case 107:
+            // handle M107 Stop Extrusion
+            stop_extrusion();
+            break;
+          default:
+            break;
+        }
+      }
+      else{
+        osDelay(20);
+      }
+    }
+    for(;;){
+      osDelay(1);
+    }
   /* USER CODE END StartCommandTask */
 }
 
@@ -570,29 +646,30 @@ void StartParserTask(void *argument)
 {
   /* USER CODE BEGIN StartParserTask */
   /* Infinite loop */
+
+  BYTE line[50];
+
+  bool complete = false;
+
+  do {
+    if(osMessageQueueGetCount(commandQueueHandle) < 30){
+      GetLine(line);
+      complete = eof();
+      myprintf((const char*)line);
+      InterpretLine((const char*)line);
+    }
+    else{
+      osDelay(1);
+    }
+  }
+  while(!complete);
+
+  CloseFile();
   for(;;)
   {
     osDelay(1);
   }
   /* USER CODE END StartParserTask */
-}
-
-/* USER CODE BEGIN Header_StartMenuTask */
-/**
-* @brief Function implementing the menuTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartMenuTask */
-void StartMenuTask(void *argument)
-{
-  /* USER CODE BEGIN StartMenuTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartMenuTask */
 }
 
 /* USER CODE BEGIN Header_StartExtruderTask */
@@ -609,33 +686,6 @@ void StartExtruderTask(void *argument)
   while(true){
     extrude();
   }
-  /* USER CODE END StartExtruderTask */
-}
-
-void StartsdcardTask(void *argument)
-{
-  /* USER CODE BEGIN StartExtruderTask */
-	OpenFilesystem();
-	GCodeEnqueueFromCard();
-	  /* USER CODE BEGIN 5 */
-	  /* Infinite loop */
-	  while(1)
-	  {
-//		   if (isPrinting == 1)
-//		   {
-//			   osDelay(1);
-//		   }
-//		   else if (isPrinting == 0)
-//		   {
-//			   Dequeue();
-//			   osDelay(1);
-//		   }
-//		   else
-//		   {
-//			   myprintf("Error: unexpected state of isPrinting variable\r\n"); // Handle unexpected state of isPrinting (optional)
-//		   }
-	   }
-
   /* USER CODE END StartExtruderTask */
 }
 

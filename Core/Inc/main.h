@@ -22,13 +22,9 @@
 #ifndef __MAIN_H
 #define __MAIN_H
 
-
-
 #ifdef __cplusplus
 extern "C" {
-
 #endif
-
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32l4xx_hal.h"
@@ -52,6 +48,8 @@ extern "C" {
 /* USER CODE BEGIN EM */
 
 /* USER CODE END EM */
+
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
@@ -121,7 +119,8 @@ void Error_Handler(void);
 #define Y_STOP_GPIO_Port GPIOB
 #define Screen_LED_Pin GPIO_PIN_7
 #define Screen_LED_GPIO_Port GPIOB
-
+#define Valve_Servo_Pin GPIO_PIN_8
+#define Valve_Servo_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 #define SD_SPI_HANDLE hspi1

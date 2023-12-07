@@ -1,1 +1,2 @@
-../Core/Src/interpreter.c:15:6:InterpretLine	12
+../Core/Src/interpreter.c:20:6:myprintc	1
+../Core/Src/interpreter.c:31:6:InterpretLine	15

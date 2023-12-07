@@ -11,8 +11,26 @@
 #include "cmsis_os.h"
 #include "main.h"
 #include "interpreter.h"
+#include <stdarg.h>
+
+extern osMessageQueueId_t commandQueueHandle;
+extern osMessageQueueId_t coordQueueHandle;
+extern UART_HandleTypeDef huart2;
+
+void myprintc(const char *fmt, ...)
+{
+  static char buffer[256];
+  va_list args;
+  va_start(args, fmt);
+  vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+  int len = strlen(buffer);
+  HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, -1);
+}
 
 void InterpretLine(const char* line) {
+
+  myprintc("ran");
     // Copy the line to a mutable buffer for modification
     char buffer[100];
     strncpy(buffer, line, sizeof(buffer));
@@ -67,39 +85,52 @@ void InterpretLine(const char* line) {
         token = strtok(NULL, " ");
     }
 
+
+
+    //TODO: will this wait like it is expected to when the queue is full
     switch (gCode) {
-		case 1:
+      case 1:
 
-			// Add code to handle G1 Set Speed
-			break;
-		case 4:
+        // Add code to handle G1 Set Speed
+        osMessageQueuePut(commandQueueHandle, &gCode, 100, 0U);
+        osMessageQueuePut(commandQueueHandle, &speedSet, 100, 0U);
+        break;
+      case 4:
 
-			// Add code to handle G4 Pause
-			break;
-		case 0:
-			// Add command to queue or call move(xCoord, yCoord)
-			// osMessageQueuePut(commandQueueHandle, &msg, 0U, 0U);
-			break;
-		case 28:
+        // Add code to handle G4 Pause
+        osMessageQueuePut(commandQueueHandle, &gCode, 100, 0U);
+        osMessageQueuePut(commandQueueHandle, &pauseDur, 100, 0U);
+        break;
+      case 0:
+        // Add command to queue or call move(xCoord, yCoord)
+        // osMessageQueuePut(commandQueueHandle, &msg, 0U, 0U);
+        osMessageQueuePut(commandQueueHandle, &gCode, 100, 0U);
+        osMessageQueuePut(coordQueueHandle, &xCoord, 100, 0U);
+        osMessageQueuePut(coordQueueHandle, &yCoord, 100, 0U);
+        break;
+      case 28:
 
-			// Add code to handle G28 Home
-			break;
+        // Add code to handle G28 Home
+        osMessageQueuePut(commandQueueHandle, &gCode, 100, 0U);
+        break;
 
-		default:
-			printf("Unknown G-code command: %d\n", gCode);
-			break;
-	}
+      default:
+        printf("Unknown G-code command: %d\n", gCode);
+        break;
+    }
 
     switch (mCode) {
 		case 106:
 
 			// Add code to handle M106 Start Extrusion
 			// Add command to queue or start_extrusion()
+		  osMessageQueuePut(commandQueueHandle, &mCode, 100, 0U);
 			break;
 		case 107:
 
 			// Add code to handle M107 Stop Extrusion
 			// Add command to queue or call stop_extrusion()
+		  osMessageQueuePut(commandQueueHandle, &mCode, 100, 0U);
 			break;
 		default:
 			printf("Unknown M command: %d\n", mCode);
