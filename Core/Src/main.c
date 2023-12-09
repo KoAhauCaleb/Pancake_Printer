@@ -73,13 +73,6 @@ const osThreadAttr_t parserTask_attributes = {
   .stack_size = 400 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for extruderTask */
-osThreadId_t extruderTaskHandle;
-const osThreadAttr_t extruderTask_attributes = {
-  .name = "extruderTask",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
-};
 /* Definitions for commandQueue */
 osMessageQueueId_t commandQueueHandle;
 const osMessageQueueAttr_t commandQueue_attributes = {
@@ -104,7 +97,6 @@ static void MX_TIM4_Init(void);
 void StartDefaultTask(void *argument);
 void StartCommandTask(void *argument);
 void StartParserTask(void *argument);
-void StartExtruderTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -192,9 +184,6 @@ int main(void)
 
   /* creation of parserTask */
   parserTaskHandle = osThreadNew(StartParserTask, NULL, &parserTask_attributes);
-
-  /* creation of extruderTask */
-  extruderTaskHandle = osThreadNew(StartExtruderTask, NULL, &extruderTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -577,6 +566,54 @@ void StartCommandTask(void *argument)
 {
   /* USER CODE BEGIN StartCommandTask */
     /* Infinite loop */
+/*  servo_angle_set(0);
+  osDelay(15000);
+  servo_angle_set(8);
+  osDelay(30000);
+  servo_angle_set(6);
+  osDelay(30000);
+  servo_angle_set(8);
+  osDelay(30000);
+  servo_angle_set(10);
+
+  for(int i = 3; i <= 25; i++){
+    servo_angle_set(i);
+    osDelay(1000);
+    myprintf("%d degrees\n", i);
+    servo_angle_set(0);
+    osDelay(1000);
+  }
+    home();
+    for(int i = 0; i < 50; i++){
+      set_speed(30 + i * 10);
+      move(100, 50);
+      if(i > 20){
+        wait(100);
+      }
+      set_speed(40 + i * 10);
+      move(200, 100);
+      if(i > 20){
+        wait(100);
+      }
+    }
+    start_extrusion();
+    wait(1000);
+    stop_extrusion();
+    wait(1000);
+    start_extrusion();
+    wait(500);
+    stop_extrusion();
+    wait(500);
+    start_extrusion();
+    wait(100);
+    stop_extrusion();
+    wait(100);
+
+
+    for(;;){
+      osDelay(1);
+    }*/
+
     uint8_t  prio = 100;
 
     int cmd = -1;
@@ -596,7 +633,8 @@ void StartCommandTask(void *argument)
           case 1:
             // Add code to handle G1 Set Speed
             osMessageQueueGet(commandQueueHandle, &speedSet, &prio, 1);
-            //set_speed(speedSet/60);
+            myprintf("speed: %d ", speedSet/240);
+            set_speed(speedSet/240);
             break;
           case 4:
             // handle G4 Pause
@@ -646,17 +684,26 @@ void StartParserTask(void *argument)
 {
   /* USER CODE BEGIN StartParserTask */
   /* Infinite loop */
+  int cmdtotal = 0;
+  int cmd_cnt = 0;
 
   BYTE line[50];
 
   bool complete = false;
 
   do {
-    if(osMessageQueueGetCount(commandQueueHandle) < 30){
+    cmd_cnt = osMessageQueueGetCount(commandQueueHandle);
+    if(cmd_cnt < 15){
+
       GetLine(line);
+      cmdtotal += 1;
       complete = eof();
+
       myprintf((const char*)line);
       InterpretLine((const char*)line);
+      myprintf("queue size: %d --- ", cmd_cnt);
+      myprintf("lines processed: %d ", cmdtotal);
+
     }
     else{
       osDelay(1);
@@ -670,23 +717,6 @@ void StartParserTask(void *argument)
     osDelay(1);
   }
   /* USER CODE END StartParserTask */
-}
-
-/* USER CODE BEGIN Header_StartExtruderTask */
-/**
-* @brief Function implementing the extruderTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartExtruderTask */
-void StartExtruderTask(void *argument)
-{
-  /* USER CODE BEGIN StartExtruderTask */
-  /* Infinite loop */
-  while(true){
-    extrude();
-  }
-  /* USER CODE END StartExtruderTask */
 }
 
 /**

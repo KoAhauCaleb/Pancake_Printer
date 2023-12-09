@@ -30,7 +30,6 @@ void myprintc(const char *fmt, ...)
 
 void InterpretLine(const char* line) {
 
-  myprintc("ran");
     // Copy the line to a mutable buffer for modification
     char buffer[100];
     strncpy(buffer, line, sizeof(buffer));
